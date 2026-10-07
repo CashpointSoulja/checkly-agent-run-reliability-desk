@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { fixtureFile } from './exports'
+import { fingerprint, fixtureFile } from './exports'
 import { seedFixtures } from './fixtures'
 import { importTraces } from './importTrace'
 import type { Trace } from './types'
@@ -79,7 +79,7 @@ describe('nested trace schema', () => {
     ['tool step without tool', (t) => { const s = t.steps.find((x: { kind: string }) => x.kind === 'tool'); delete s.tool }, /\.tool must be a non-empty string/],
     ['duplicate step id', (t) => { t.steps[1].id = t.steps[0].id }, /steps: duplicate id/],
     ['source not an object', (t) => { t.sources.push('x') }, /sources\[\d+\] must be an object/],
-    ['source bad date', (t) => { t.sources[0].asOf = 'yesterday' }, /sources\[0\]\.asOf must be an ISO date/],
+    ['source bad date', (t) => { t.sources[0].asOf = 'yesterday' }, /sources\[0\]\.asOf must be an ISO 8601 date-time/],
     ['claim cites unknown source', (t) => { t.output.claims.push({ id: 'cx', text: 'made up', sourceIds: ['nope'] }) }, /"nope" does not match any source id/],
     ['claim sourceIds not array', (t) => { t.output.claims.push({ id: 'cy', text: 'x', sourceIds: 'src-1' }) }, /sourceIds must be an array/],
     ['output http out of range', (t) => { t.output.httpStatus = 2000 }, /output\.httpStatus must be an integer HTTP status/],
@@ -124,5 +124,83 @@ describe('fixture wrapper validation', () => {
     const r = importTraces(JSON.stringify(file()))
     expect(r.errors).toEqual([])
     expect(r.reproduced[0].match).toBe(true)
+  })
+})
+
+describe('final-audit probes fail closed', () => {
+  const wrong = candidate.find((t) => t.scenario === 'wrong-tool-target')!
+  const loaded = new Map([...candidate, ...seedFixtures().baseline].map((t) => [t.id, fingerprint(t)]))
+
+  it('rejects an imported trace that reuses a seed id with different content, so verdicts cannot mix', () => {
+    const clash = { ...structuredClone(wrong), id: healthy.id }
+    const r = importTraces(JSON.stringify(clash), loaded)
+    expect(r.traces).toEqual([])
+    expect(r.errors[0]).toMatch(/already loaded with different content/)
+    expect(evaluate(healthy).task).toBe('pass')
+    expect(evaluate(clash).task).toBe('fail')
+  })
+  it('rejects the whole batch when two traces share an id', () => {
+    const a = { ...structuredClone(healthy), id: 'dup-1' }
+    const b = { ...structuredClone(wrong), id: 'dup-1' }
+    const r = importTraces(JSON.stringify([a, b]), loaded)
+    expect(r.traces).toEqual([])
+    expect(r.errors.join('\n')).toMatch(/"dup-1" appears more than once/)
+  })
+  it('a re-imported identical seed is verified, not added twice', () => {
+    const r = importTraces(JSON.stringify(fixtureFile(wrong, evaluate(wrong))), loaded)
+    expect(r.errors).toEqual([])
+    expect(r.traces).toEqual([])
+    expect(r.alreadyLoaded).toEqual([wrong.id])
+    expect(r.reproduced[0].match).toBe(true)
+  })
+  it('any error in a batch imports nothing', () => {
+    const good = { ...structuredClone(healthy), id: 'ok-1' }
+    const bad = { ...structuredClone(healthy), id: 'bad-1', startedAt: 'yesterday' }
+    const r = importTraces(JSON.stringify([good, bad]))
+    expect(r.traces).toEqual([])
+    expect(r.errors.length).toBeGreaterThan(0)
+  })
+  it.each(['yesterday', '2026', '2026-10-01', '2026-13-01T00:00:00Z', '2026-02-30T00:00:00Z', '2026-10-01T25:00:00Z', '2026-10-01T08:00:00'])('rejects source asOf %s', (asOf) => {
+    const t = structuredClone(healthy)
+    t.sources[0].asOf = asOf
+    const r = importTraces(JSON.stringify(t))
+    expect(r.traces).toEqual([])
+    expect(r.errors.join('\n')).toMatch(/sources\[0\]\.asOf must be an ISO 8601 date-time/)
+  })
+  it('rejects amount "480 GBP" at import, and the validator fails it if called directly', () => {
+    const t = structuredClone(candidate.find((x) => x.scenario === 'missing-approval')!)
+    const s = t.steps.find((x) => x.tool === 'refunds.issue')!
+    s.args = { amount: '480 GBP' }
+    const r = importTraces(JSON.stringify(t))
+    expect(r.traces).toEqual([])
+    expect(r.errors.join('\n')).toMatch(/args\.amount must be a non-negative number, not "480 GBP"/)
+    const e = evaluate(t)
+    expect(e.task).toBe('fail')
+    expect(e.firstFailure?.message).toMatch(/non-numeric amount/)
+  })
+  it('requires a numeric amount on tools under an approval rule', () => {
+    const t = structuredClone(healthy)
+    delete t.steps.find((x) => x.tool === 'refunds.issue')!.args
+    expect(importTraces(JSON.stringify(t)).errors.join('\n')).toMatch(/args\.amount is required/)
+    expect(evaluate(t).task).toBe('fail')
+  })
+  it('rejects granted "false" at import, and the validator does not treat it as granted', () => {
+    const base = seedFixtures().baseline.find((x) => x.scenario === 'missing-approval')!
+    expect(evaluate(base).task).toBe('pass')
+    const t = structuredClone(base) as unknown as Trace
+    const ap = t.steps.find((x) => x.kind === 'approval')!
+    ;(ap.approval as unknown as Record<string, unknown>).granted = 'false'
+    const r = importTraces(JSON.stringify(t))
+    expect(r.traces).toEqual([])
+    expect(r.errors.join('\n')).toMatch(/approval\.granted must be true or false/)
+    expect(evaluate(t).task).toBe('fail')
+  })
+  it('a wrapper with no expected block imports nothing and reproduces nothing', () => {
+    const f = JSON.parse(JSON.stringify(fixtureFile(healthy, evaluate(healthy))))
+    delete f.expected
+    const r = importTraces(JSON.stringify(f))
+    expect(r.traces).toEqual([])
+    expect(r.reproduced).toEqual([])
+    expect(r.errors.join('\n')).toMatch(/expected must be an object/)
   })
 })

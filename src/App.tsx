@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { compareReleases, gate, type ComparisonRow } from './domain/compare'
-import { alertPreview, fixtureFile, releaseReport, reviewMemo } from './domain/exports'
+import { alertPreview, fingerprint, fixtureFile, releaseReport, reviewMemo } from './domain/exports'
 import { BASELINE, CANDIDATE, SCENARIOS, seedFixtures } from './domain/fixtures'
 import { importTraces, type ImportResult } from './domain/importTrace'
 import type { Evaluation, Trace } from './domain/types'
@@ -20,7 +20,12 @@ const reduceMotion = () => typeof window !== 'undefined' && window.matchMedia?.(
 function load(): Persisted {
   try {
     const raw = localStorage.getItem(KEY)
-    if (raw) return JSON.parse(raw) as Persisted
+    if (raw) {
+      const p = JSON.parse(raw) as Persisted
+      const seedIds = new Map([...seeds.candidate, ...seeds.baseline].map((t) => [t.id, fingerprint(t)]))
+      const ok = Array.isArray(p.imported) && (p.imported.length === 0 || importTraces(JSON.stringify(p.imported), seedIds).errors.length === 0)
+      return { imported: ok ? p.imported : [], evaluated: Array.isArray(p.evaluated) ? p.evaluated : [], reviews: p.reviews && typeof p.reviews === 'object' ? p.reviews : {} }
+    }
   } catch { /* ignore corrupt local state */ }
   return { imported: [], evaluated: [], reviews: {} }
 }
@@ -95,11 +100,16 @@ export default function App() {
   }
 
   function runImport(text: string) {
-    const r = importTraces(text)
+    const r = importTraces(text, new Map(all.map((t) => [t.id, fingerprint(t)])))
     setImportResult(r)
+    if (!r.traces.length && r.alreadyLoaded.length) {
+      const id = r.alreadyLoaded[0]
+      setView(seeds.candidate.some((t) => t.id === id) ? 'candidate' : seeds.baseline.some((t) => t.id === id) ? 'baseline' : 'imported')
+      setSelectedId(id)
+      setEvaluated((s) => new Set(s).add(id))
+    }
     if (r.traces.length) {
-      const known = new Set(all.map((t) => t.id))
-      const fresh = r.traces.map((t) => (known.has(t.id) ? { ...t, id: `${t.id}#import-${imported.length + 1}` } : t))
+      const fresh = r.traces
       setImported((p) => [...p, ...fresh])
       setView('imported')
       setSelectedId(fresh[0].id)
@@ -164,7 +174,9 @@ export default function App() {
             <div className="import-result" role="status">
               {importResult.traces.length > 0 && <p className="ok">Imported {importResult.traces.length} trace(s).</p>}
               {importResult.warnings.length > 0 && <ul className="warn">{importResult.warnings.slice(0, 8).map((w) => <li key={w}>{w}</li>)}</ul>}
+              {importResult.alreadyLoaded.map((id) => <p key={id} className="ok">Already loaded: <code>{id}</code> is identical to a run in the desk, so it was verified and not added twice.</p>)}
               {importResult.reproduced.map((r) => <p key={r.id} className={r.match ? 'ok' : 'bad'}>{r.detail}</p>)}
+              {importResult.errors.length > 0 && <p className="bad"><b>Nothing imported.</b> Fix {importResult.errors.length} error(s) and try again.</p>}
               {importResult.errors.length > 0 && <ul className="bad">{importResult.errors.slice(0, 8).map((e) => <li key={e}><code>{e}</code></li>)}</ul>}
             </div>
           )}

@@ -70,10 +70,13 @@ function check(t: Trace, inv: Invariant): AssertionResult {
     }
     case 'approval_required': {
       const expected = `approval granted before ${inv.tool} where amount > ${inv.aboveAmount}`
-      const needing = toolSteps(t, inv.tool).filter((s) => Number(s.args?.amount ?? 0) > inv.aboveAmount)
+      const amountOf = (s: Step) => s.args?.amount
+      const needing = toolSteps(t, inv.tool).filter((s) => { const a = amountOf(s); return typeof a !== 'number' || !Number.isFinite(a) || a > inv.aboveAmount })
       if (needing.length === 0) return { ...base(inv), status: 'pass', vacuous: toolSteps(t, inv.tool).length === 0, expected, actual: 'no call above threshold', message: `No ${inv.tool} call exceeded ${inv.aboveAmount}.` }
       for (const s of needing) {
-        const appr = t.steps.find((a) => a.kind === 'approval' && a.approval?.forStep === s.id && a.approval.granted && a.startMs + a.durationMs <= s.startMs)
+        const appr = t.steps.find((a) => a.kind === 'approval' && a.approval?.forStep === s.id && a.approval.granted === true && a.startMs + a.durationMs <= s.startMs)
+        const a = amountOf(s)
+        if (typeof a !== 'number' || !Number.isFinite(a)) return { ...base(inv), status: 'fail', expected, actual: `amount ${JSON.stringify(a)}`, stepId: s.id, message: `Step ${s.id} called ${inv.tool} with a non-numeric amount, so the approval threshold cannot be ruled out.` }
         if (!appr) return { ...base(inv), status: 'fail', expected, actual: `amount ${s.args?.amount}, no approval step`, stepId: s.id, message: `Step ${s.id} executed ${inv.tool} for ${s.args?.amount} without a granted approval.` }
       }
       return { ...base(inv), status: 'pass', expected, actual: 'approval recorded', message: `${needing.length} high-value call(s) preceded by a granted approval.` }

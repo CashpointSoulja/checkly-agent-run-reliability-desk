@@ -49,6 +49,21 @@ test('seed → validate → pass → blocked → abstain → export → re-impor
   await page.getByLabel('Trace JSON').fill(fixtureText)
   await page.getByRole('button', { name: 'Import and evaluate' }).click()
   await expect(page.locator('.import-result')).toContainText('Reproduced: task FAIL')
+  await expect(page.locator('.import-result')).toContainText('verified and not added twice')
+  await expect(page.getByRole('button', { name: 'Imported (0)' })).toBeVisible()
+
+  const clash = { ...JSON.parse(fixtureText).trace, id: 'healthy@v2.4.0-rc.1' }
+  await page.getByLabel('Trace JSON').fill(JSON.stringify(clash))
+  await page.getByRole('button', { name: 'Import and evaluate' }).click()
+  await expect(page.locator('.import-result')).toContainText('Nothing imported')
+  await expect(page.locator('.import-result')).toContainText('already loaded with different content')
+  await expect(page.getByRole('button', { name: 'Imported (0)' })).toBeVisible()
+  await page.getByRole('button', { name: 'Candidate v2.4.0-rc.1' }).click()
+  await runs.filter({ hasText: 'Healthy' }).click()
+  await expect(detail.locator('.verdict.pass').filter({ hasText: 'Task' })).toBeVisible()
+
+  await page.getByRole('button', { name: 'Insert example trace' }).click()
+  await page.getByRole('button', { name: 'Import and evaluate' }).click()
   await expect(page.getByRole('button', { name: 'Imported (1)' })).toHaveAttribute('aria-pressed', 'true')
 
   await page.reload()

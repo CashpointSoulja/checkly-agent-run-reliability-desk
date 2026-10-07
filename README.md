@@ -5,7 +5,7 @@
 A working, synthetic-data review desk built on one hypothesis: **a green HTTP status is not proof that an agent completed the correct job.** It loads agent run traces (steps, tool calls, sources, output), checks them against declared policy invariants using deterministic validators, and shows **transport success** and **task success** as two separate verdicts. Both are shown with the exact failed assertion, the timeline, the source evidence and a baseline-vs-candidate release gate.
 
 - Live demo: not published yet (see [Hosting](#hosting))
-- Walkthrough video (76 s, voiced, subtitled): [docs/video/walkthrough.mp4](docs/video/walkthrough.mp4) · [script and timings](docs/VIDEO_SCRIPT.md)
+- Walkthrough video (85 s, voiced, subtitled): [docs/video/walkthrough.mp4](docs/video/walkthrough.mp4) · [script and timings](docs/VIDEO_SCRIPT.md)
 
 ![Desktop, blocked run](docs/screenshots/desktop-1366-blocked.png)
 
