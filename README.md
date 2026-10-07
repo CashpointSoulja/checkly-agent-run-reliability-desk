@@ -61,7 +61,9 @@ npm run dev
 The app is a static bundle (`npm run build` → `dist/`, relative asset paths) with no server, secrets or login, so any static host serves it signed out.
 
 - **Cloudflare Workers (free plan):** `wrangler.toml` serves `dist/` as static assets. Connect the repo in the Cloudflare dashboard (build command `npm run build`) or run `npx wrangler deploy` from an authenticated machine.
-- **GitHub Pages:** `.github/workflows/pages.yml` runs typecheck, lint and tests, then builds and deploys on push to `main` (Pages source: GitHub Actions).
+- **GitHub Pages (optional):** `.github/workflows/pages.yml` runs typecheck, lint and tests, then builds and deploys when run manually (Pages source: GitHub Actions).
+
+Every push and pull request also runs `.github/workflows/ci.yml` (typecheck, lint, unit tests, build).
 
 ## Docs
 
