@@ -1,0 +1,47 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Visual brand guide: Agent Run Reliability Desk</title>
+<style>
+body{margin:0;font-family:Inter,system-ui,sans-serif;color:#002652;background:#F7F9FC;line-height:1.5}
+header{background:#061220;color:#fff;padding:20px 32px;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+header small{color:#80BBFF}
+main{max-width:1100px;margin:auto;padding:24px 32px}
+h2{font-size:20px;margin:32px 0 12px;letter-spacing:-.01em}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:12px}
+.sw{border:1px solid #E3E8EF;border-radius:10px;overflow:hidden;background:#fff;font-size:13px}
+.sw div{height:64px}.sw p{margin:8px 10px}
+code{font-family:ui-monospace,Menlo,monospace;font-size:12px}
+.row{display:flex;gap:16px;flex-wrap:wrap;align-items:center}
+.logo-box{padding:20px;border-radius:10px;border:1px solid #E3E8EF}
+.btn{font:600 14px Inter,sans-serif;border-radius:6px;padding:8px 14px;border:1px solid transparent}
+.chip{font:600 12px Inter,sans-serif;border-radius:999px;padding:2px 10px;border:1px solid}
+img.cap{max-width:100%;border:1px solid #E3E8EF;border-radius:10px}
+</style></head><body>
+<header><img src="brand/checkly-logo-on-dark.svg" alt="Checkly logo" height="24"><span>Visual brand guide · Agent Run Reliability Desk</span><small>Independent concept by Ayo Ahmed. Not affiliated with Checkly.</small></header>
+<main>
+<p>Observed on Checkly's public site and docs, checked 2026-10-07. The written rules are in <a href="DESIGN.md">DESIGN.md</a>.</p>
+<h2>Official logo (unaltered public assets)</h2>
+<div class="row"><div class="logo-box" style="background:#fff"><img src="brand/checkly-logo-on-light.svg" alt="Checkly logo, light background" height="32"></div><div class="logo-box" style="background:#061220"><img src="brand/checkly-logo-on-dark.svg" alt="Checkly logo, dark background" height="32"></div></div>
+<h2>Colour</h2><div class="grid">
+<div class="sw"><div style="background:#061220"></div><p><b>navy-950</b> <code>#061220</code></p></div>
+<div class="sw"><div style="background:#0A1A33"></div><p><b>navy-900</b> <code>#0A1A33</code></p></div>
+<div class="sw"><div style="background:#002652"></div><p><b>navy-700</b> <code>#002652</code></p></div>
+<div class="sw"><div style="background:#0075FF"></div><p><b>blue-500</b> <code>#0075FF</code></p></div>
+<div class="sw"><div style="background:#80BBFF"></div><p><b>blue-300</b> <code>#80BBFF</code></p></div>
+<div class="sw"><div style="background:#EEF5FF"></div><p><b>blue-50</b> <code>#EEF5FF</code></p></div>
+<div class="sw"><div style="background:#4B5B73"></div><p><b>ink-600</b> <code>#4B5B73</code></p></div>
+<div class="sw"><div style="background:#E3E8EF"></div><p><b>line</b> <code>#E3E8EF</code></p></div>
+<div class="sw"><div style="background:#0E9F6E"></div><p><b>pass</b> <code>#0E9F6E</code></p></div>
+<div class="sw"><div style="background:#E0364F"></div><p><b>fail</b> <code>#E0364F</code></p></div>
+<div class="sw"><div style="background:#B76E00"></div><p><b>warn / review</b> <code>#B76E00</code></p></div></div>
+<h2>Type</h2>
+<p style="font-size:28px;font-weight:700;letter-spacing:-.01em;margin:0">Inter 28 / 700: Transport passed. Task failed.</p>
+<p style="font-size:16px;margin:4px 0">Inter 16 / 400: body copy for run detail and memos.</p>
+<p><code>ui-monospace 12: assert output.recipient == policy.allowed_recipient</code></p>
+<h2>Controls and status</h2>
+<div class="row"><button class="btn" style="background:#0075FF;color:#fff">Run validators</button><button class="btn" style="background:#fff;color:#002652;border-color:#E3E8EF">Reset</button>
+<span class="chip" style="color:#0E9F6E;border-color:#0E9F6E">✓ PASS</span><span class="chip" style="color:#E0364F;border-color:#E0364F">✕ FAIL</span><span class="chip" style="color:#B76E00;border-color:#B76E00">◐ REVIEW</span></div>
+<h2>Reference captures</h2>
+<p>Marketing (dark) and docs (light). The product uses the dense docs treatment with a navy top bar.</p>
+<img class="cap" src="brand/site-home-desktop.jpg" alt="Checkly marketing home, desktop"><br><br>
+<img class="cap" src="brand/docs-home-desktop.jpg" alt="Checkly docs home, desktop"><br><br>
+<img class="cap" src="brand/docs-synthetic-desktop.jpg" alt="Checkly synthetic monitoring docs">
+</main></body></html>
