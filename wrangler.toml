@@ -1,0 +1,6 @@
+# Static-assets deploy for Cloudflare Workers (free plan). Requires an authenticated Wrangler session.
+name = "checkly-agent-run-reliability-desk"
+compatibility_date = "2026-10-01"
+
+[assets]
+directory = "./dist"

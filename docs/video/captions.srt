@@ -1,0 +1,69 @@
+1
+00:00:00,300 --> 00:00:04,700
+This is the Agent Run Reliability Desk,
+an independent concept for Checkly.
+
+2
+00:00:04,800 --> 00:00:09,880
+Its premise: a green HTTP status is not
+proof that an agent did the right job.
+
+3
+00:00:09,980 --> 00:00:13,676
+Eight synthetic fixtures are
+seeded across two agent releases.
+
+4
+00:00:13,777 --> 00:00:19,494
+You can also paste or upload your own JSON trace.
+It is evaluated locally, with no telemetry.
+
+5
+00:00:19,593 --> 00:00:26,403
+Running the validators applies deterministic rules,
+not AI scores, to every step, tool call and source.
+
+6
+00:00:26,504 --> 00:00:32,943
+The healthy refund passes both layers:
+HTTP 200, and every declared invariant holds.
+
+7
+00:00:33,042 --> 00:00:39,518
+Now the wrong tool target.
+Transport passed with HTTP 200, but the task failed.
+
+8
+00:00:39,619 --> 00:00:46,249
+The exact assertion shows the agent updated
+ticket T-818 instead of T-881, at step s3.
+
+9
+00:00:46,349 --> 00:00:51,548
+Against the baseline, six scenarios regressed,
+so the release gate blocks the candidate.
+
+10
+00:00:51,647 --> 00:00:55,870
+In the baseline,
+the agent saw a stale status snapshot and abstained.
+
+11
+00:00:55,968 --> 00:01:00,540
+That is a safe outcome,
+so a human confirms it instead of it counting as a failure.
+
+12
+00:01:00,641 --> 00:01:05,985
+Finally, export a reproducible fixture with its fingerprint,
+and a review memo for the hand-off.
+
+13
+00:01:06,084 --> 00:01:09,935
+The alert preview stays concise,
+and it is never sent anywhere.
+
+14
+00:01:10,036 --> 00:01:15,903
+Independent concept by Ayo Ahmed.
+Not affiliated with Checkly. All data is synthetic.
