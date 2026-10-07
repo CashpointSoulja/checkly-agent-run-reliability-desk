@@ -194,3 +194,5 @@ button { font: inherit; color: inherit; }
   .runs ul { grid-template-columns: 1fr; }
 }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+.assertions li.review { background: #fffaf0; }
+.import-result ul.warn { color: var(--warn); padding-left: 18px; }

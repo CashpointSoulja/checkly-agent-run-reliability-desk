@@ -63,11 +63,11 @@ export interface Trace {
   }
 }
 
-export type AssertionStatus = 'pass' | 'fail' | 'skip'
+export type AssertionStatus = 'pass' | 'fail' | 'review' | 'skip'
 
 export interface AssertionResult {
   id: string
-  kind: Invariant['kind'] | 'abstention_safe'
+  kind: Invariant['kind'] | 'abstention_safe' | 'evidence_coverage'
   description: string
   status: AssertionStatus
   expected: string
@@ -75,6 +75,8 @@ export interface AssertionResult {
   stepId?: string
   claimId?: string
   message: string
+  /** Passed without proving the job was done (nothing it checks happened, or it only checks speed). */
+  vacuous?: boolean
 }
 
 export type TaskVerdict = 'pass' | 'fail' | 'review'
@@ -91,5 +93,7 @@ export interface Evaluation {
   task: TaskVerdict
   assertions: AssertionResult[]
   firstFailure?: AssertionResult
+  reviewReason?: 'abstained' | 'insufficient_evidence'
+  coverage: { substantivePasses: number; declaredInvariants: number; steps: number }
   summary: string
 }

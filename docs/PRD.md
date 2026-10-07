@@ -32,7 +32,7 @@ A green HTTP status is not proof that an agent completed the correct job. Agent-
 | Seed fixtures | 8 scenarios × 2 releases (`v2.3.1` baseline, `v2.4.0-rc.1` candidate): healthy, wrong tool target, stale source, timeout, missing approval, partial success, duplicate side effect, unsupported claim |
 | JSON import | Paste or upload a trace, an array of traces, or an exported fixture. Schema errors are listed by path. Unknown validator kinds are rejected |
 | Validators (v1.0.0) | `tools_allowed`, `target_matches`, `max_source_age`, `latency_budget`, `approval_required`, `complete_all`, `idempotent`, `claims_grounded`, plus the implicit `SAFE-ABSTAIN` |
-| Verdicts | Transport: PASS if the final HTTP status is 2xx. Task: FAIL if any assertion fails; REVIEW if the agent abstained safely; otherwise PASS |
+| Verdicts | Transport: PASS if the final HTTP status is 2xx. Task: FAIL if any assertion fails; REVIEW if the agent abstained safely, or if the run has no recorded steps or no invariant that actually checked something (`EVIDENCE-COVERAGE`; allow-lists with no tool calls, idempotency with no executions and latency budgets do not count); otherwise PASS. Absence of failures is never treated as success |
 | Timeline | Steps with offsets, duration bars, tool call signature, HTTP status, notes, simulated side-effect tags and failed-invariant tags |
 | Evidence | Agent output, claims with cited sources and quotes, source URI, as-of time and age at run start |
 | Release gate | Per scenario: regression / fixed / still failing / still passing / changed. The gate is BLOCKED if any candidate run fails |

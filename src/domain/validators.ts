@@ -1,6 +1,6 @@
 import type { AssertionResult, Evaluation, Invariant, Step, Trace } from './types'
 
-export const VALIDATOR_VERSION = '1.0.0'
+export const VALIDATOR_VERSION = '1.1.0'
 
 const ok = (s?: number) => s !== undefined && s >= 200 && s < 300
 const toolSteps = (t: Trace, tool: string) => t.steps.filter((s) => s.kind === 'tool' && s.tool === tool)
@@ -30,7 +30,9 @@ function check(t: Trace, inv: Invariant): AssertionResult {
       const bad = t.steps.find((s) => s.kind === 'tool' && !inv.tools.includes(s.tool ?? ''))
       return bad
         ? { ...base(inv), status: 'fail', expected: `tool ∈ {${inv.tools.join(', ')}}`, actual: `${bad.tool}`, stepId: bad.id, message: `Step ${bad.id} called undeclared tool ${bad.tool}.` }
-        : { ...base(inv), status: 'pass', expected: `tool ∈ {${inv.tools.join(', ')}}`, actual: 'all tool calls declared', message: 'Every tool call is on the declared allow-list.' }
+        : t.steps.some((s) => s.kind === 'tool')
+          ? { ...base(inv), status: 'pass', expected: `tool ∈ {${inv.tools.join(', ')}}`, actual: 'all tool calls declared', message: 'Every tool call is on the declared allow-list.' }
+          : { ...base(inv), status: 'pass', vacuous: true, expected: `tool ∈ {${inv.tools.join(', ')}}`, actual: 'no tool calls', message: 'No tool was called, so the allow-list was not exercised.' }
     }
     case 'target_matches': {
       const calls = toolSteps(t, inv.tool)
@@ -61,14 +63,15 @@ function check(t: Trace, inv: Invariant): AssertionResult {
       const timedOut = t.steps.find((s) => s.httpStatus === 504 || s.httpStatus === 408)
       const expected = `total ≤ ${inv.ms} ms, no 408/504`
       if (timedOut) return { ...base(inv), status: 'fail', expected, actual: `${timedOut.id} → HTTP ${timedOut.httpStatus} after ${timedOut.durationMs} ms`, stepId: timedOut.id, message: `Step ${timedOut.id} (${timedOut.tool ?? timedOut.kind}) timed out.` }
+      if (t.steps.length === 0) return { ...base(inv), status: 'pass', vacuous: true, expected, actual: 'no steps', message: 'No steps were recorded, so latency was not exercised.' }
       return total > inv.ms
         ? { ...base(inv), status: 'fail', expected, actual: `${total} ms`, message: `Run took ${total} ms, over the ${inv.ms} ms budget.` }
-        : { ...base(inv), status: 'pass', expected, actual: `${total} ms`, message: 'Run finished inside the latency budget.' }
+        : { ...base(inv), status: 'pass', vacuous: true, expected, actual: `${total} ms`, message: 'Run finished inside the latency budget. Speed alone is not evidence the job was done.' }
     }
     case 'approval_required': {
       const expected = `approval granted before ${inv.tool} where amount > ${inv.aboveAmount}`
       const needing = toolSteps(t, inv.tool).filter((s) => Number(s.args?.amount ?? 0) > inv.aboveAmount)
-      if (needing.length === 0) return { ...base(inv), status: 'pass', expected, actual: 'no call above threshold', message: `No ${inv.tool} call exceeded ${inv.aboveAmount}.` }
+      if (needing.length === 0) return { ...base(inv), status: 'pass', vacuous: toolSteps(t, inv.tool).length === 0, expected, actual: 'no call above threshold', message: `No ${inv.tool} call exceeded ${inv.aboveAmount}.` }
       for (const s of needing) {
         const appr = t.steps.find((a) => a.kind === 'approval' && a.approval?.forStep === s.id && a.approval.granted && a.startMs + a.durationMs <= s.startMs)
         if (!appr) return { ...base(inv), status: 'fail', expected, actual: `amount ${s.args?.amount}, no approval step`, stepId: s.id, message: `Step ${s.id} executed ${inv.tool} for ${s.args?.amount} without a granted approval.` }
@@ -83,7 +86,7 @@ function check(t: Trace, inv: Invariant): AssertionResult {
       const failed = calls.find((s) => !ok(s.httpStatus))
       return done < inv.expectedCount
         ? { ...base(inv), status: 'fail', expected, actual: `${done} of ${inv.expectedCount}`, stepId: failed?.id, message: `Only ${done} of ${inv.expectedCount} ${inv.tool} calls succeeded, but the run reported completion.` }
-        : { ...base(inv), status: 'pass', expected, actual: `${done} of ${inv.expectedCount}`, message: 'Every expected item was completed.' }
+        : { ...base(inv), status: 'pass', vacuous: inv.expectedCount < 1, expected, actual: `${done} of ${inv.expectedCount}`, message: 'Every expected item was completed.' }
     }
     case 'idempotent': {
       const expected = `≤ 1 executed ${inv.tool} per target`
@@ -95,7 +98,7 @@ function check(t: Trace, inv: Invariant): AssertionResult {
         if (prev) return { ...base(inv), status: 'fail', expected, actual: `${prev.id} and ${s.id} both executed on ${key}`, stepId: s.id, message: `Side effect ${inv.tool} ran twice on ${key} (${String(prev.result?.id ?? prev.id)}, ${String(s.result?.id ?? s.id)}).` }
         seen.set(key, s)
       }
-      return { ...base(inv), status: 'pass', expected, actual: `${executed.length} executed`, message: 'No duplicate side effects.' }
+      return { ...base(inv), status: 'pass', vacuous: executed.length === 0, expected, actual: `${executed.length} executed`, message: executed.length ? 'No duplicate side effects.' : `No ${inv.tool} call executed, so idempotency was not exercised.` }
     }
     case 'claims_grounded': {
       const expected = 'every claim quotes a cited source verbatim'
@@ -134,14 +137,35 @@ export function evaluate(t: Trace): Evaluation {
   if (abs) assertions.push(abs)
   const stepErrors = t.steps.filter((s) => s.httpStatus !== undefined && !ok(s.httpStatus)).map((s) => ({ stepId: s.id, httpStatus: s.httpStatus as number }))
   const transport = { status: ok(t.output.httpStatus) ? ('pass' as const) : ('fail' as const), finalHttp: t.output.httpStatus, totalMs: totalDuration(t), stepErrors }
+  const coverage = {
+    substantivePasses: assertions.filter((a) => a.status === 'pass' && !a.vacuous && a.kind !== 'abstention_safe').length,
+    declaredInvariants: t.policy.invariants.length,
+    steps: t.steps.length,
+  }
   const firstFailure = assertions.find((a) => a.status === 'fail')
-  const task = firstFailure ? 'fail' : t.output.status === 'abstained' ? 'review' : 'pass'
+  let reviewReason: Evaluation['reviewReason']
+  if (!firstFailure && t.output.status === 'abstained') reviewReason = 'abstained'
+  else if (!firstFailure && (coverage.steps === 0 || coverage.substantivePasses === 0)) {
+    reviewReason = 'insufficient_evidence'
+    assertions.push({
+      id: 'EVIDENCE-COVERAGE',
+      kind: 'evidence_coverage',
+      description: 'A completed run needs at least one recorded step and one invariant that actually checked something before it can be called PASS.',
+      status: 'review',
+      expected: '≥ 1 step and ≥ 1 non-vacuous PASS',
+      actual: `${coverage.steps} step(s), ${coverage.substantivePasses} non-vacuous PASS from ${coverage.declaredInvariants} declared invariant(s)`,
+      message: 'Nothing in this trace proves the job was done. Absence of failures is not success.',
+    })
+  }
+  const task = firstFailure ? 'fail' : reviewReason ? 'review' : 'pass'
   const failed = assertions.filter((a) => a.status === 'fail').length
   const summary =
     task === 'fail'
       ? `${failed} of ${assertions.length} assertions failed. First: ${firstFailure!.id}.`
-      : task === 'review'
+      : reviewReason === 'abstained'
         ? 'Agent abstained safely. A human should confirm the hand-off.'
-        : `All ${assertions.filter((a) => a.status === 'pass').length} applicable assertions passed.`
-  return { traceId: t.id, validatorVersion: VALIDATOR_VERSION, transport, task, assertions, firstFailure, summary }
+        : reviewReason === 'insufficient_evidence'
+          ? `Not enough evidence for PASS: ${coverage.steps} step(s), ${coverage.substantivePasses} non-vacuous assertion(s) from ${coverage.declaredInvariants} declared invariant(s). A human must review.`
+          : `All ${coverage.substantivePasses} applicable assertions passed.`
+  return { traceId: t.id, validatorVersion: VALIDATOR_VERSION, transport, task, assertions, firstFailure, reviewReason, coverage, summary }
 }

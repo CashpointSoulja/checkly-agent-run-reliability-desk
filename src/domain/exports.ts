@@ -43,16 +43,18 @@ export function fixtureFile(t: Trace, e: Evaluation): FixtureFile {
   }
 }
 
-const verdictWord = { pass: 'PASS', fail: 'FAIL (blocked)', review: 'REVIEW (safe abstention)' } as const
+const verdictWord = (e: Evaluation) =>
+  e.task === 'pass' ? 'PASS' : e.task === 'fail' ? 'FAIL (blocked)' : e.reviewReason === 'abstained' ? 'REVIEW (safe abstention)' : 'REVIEW (insufficient evidence)'
 
 export function alertPreview(t: Trace, e: Evaluation, row?: ComparisonRow): string {
   const head = e.task === 'fail' ? 'BLOCKED' : e.task === 'review' ? 'NEEDS REVIEW' : 'OK'
   const lines = [
     `[${head}] ${t.scenario} · ${t.agent} ${t.release}`,
-    `Transport ${e.transport.status.toUpperCase()} (HTTP ${e.transport.finalHttp}, ${(e.transport.totalMs / 1000).toFixed(1)}s) · Task ${verdictWord[e.task]}`,
+    `Transport ${e.transport.status.toUpperCase()} (HTTP ${e.transport.finalHttp}, ${(e.transport.totalMs / 1000).toFixed(1)}s) · Task ${verdictWord(e)}`,
   ]
   if (e.firstFailure) lines.push(`Failed ${e.firstFailure.id}: expected ${e.firstFailure.expected}; got ${e.firstFailure.actual}${e.firstFailure.stepId ? ` (step ${e.firstFailure.stepId})` : ''}`)
-  if (e.task === 'review') lines.push(`Abstained: ${t.output.abstainReason}`)
+  if (e.reviewReason === 'abstained') lines.push(`Abstained: ${t.output.abstainReason}`)
+  if (e.reviewReason === 'insufficient_evidence') lines.push(`No evidence of success: ${e.coverage.steps} step(s), ${e.coverage.substantivePasses} non-vacuous assertion(s)`)
   if (row?.baseline) lines.push(`vs baseline: ${row.baseline.toUpperCase()} → ${row.candidate.toUpperCase()} (${row.delta})`)
   lines.push('Preview only. Not sent to any channel.')
   return lines.join('\n')
@@ -77,7 +79,7 @@ export function reviewMemo(t: Trace, e: Evaluation, opts: { row?: ComparisonRow;
     `| Layer | Result | Detail |`,
     `|---|---|---|`,
     `| Transport | ${e.transport.status.toUpperCase()} | final HTTP ${e.transport.finalHttp}, ${e.transport.totalMs} ms, ${e.transport.stepErrors.length} non-2xx step(s) |`,
-    `| Task | ${verdictWord[e.task]} | ${e.summary} |`,
+    `| Task | ${verdictWord(e)} | ${e.summary} |`,
     '',
     e.transport.status === 'pass' && e.task === 'fail' ? '> A status-code check alone would have reported this run as green.\n' : '',
     ...(e.firstFailure

@@ -163,6 +163,7 @@ export default function App() {
           {importResult && (
             <div className="import-result" role="status">
               {importResult.traces.length > 0 && <p className="ok">Imported {importResult.traces.length} trace(s).</p>}
+              {importResult.warnings.length > 0 && <ul className="warn">{importResult.warnings.slice(0, 8).map((w) => <li key={w}>{w}</li>)}</ul>}
               {importResult.reproduced.map((r) => <p key={r.id} className={r.match ? 'ok' : 'bad'}>{r.detail}</p>)}
               {importResult.errors.length > 0 && <ul className="bad">{importResult.errors.slice(0, 8).map((e) => <li key={e}><code>{e}</code></li>)}</ul>}
             </div>

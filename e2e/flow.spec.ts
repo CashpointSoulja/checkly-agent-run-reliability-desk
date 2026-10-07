@@ -61,3 +61,26 @@ test('seed → validate → pass → blocked → abstain → export → re-impor
   expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(0)
   expect(external).toEqual([])
 })
+
+test('a completed HTTP 200 trace with no steps, sources or invariants is REVIEW, never green', async ({ page }, info) => {
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Load JSON trace' }).click()
+  const probe = {
+    id: 'probe-empty', scenario: 'probe', title: 'Empty probe', agent: 'probe-agent', release: 'v0', startedAt: '2026-10-07T00:00:00Z',
+    task: { goal: 'Do the job', requestedBy: 'qa@example.com' },
+    policy: { id: 'probe', version: '1', abstainAllowed: false, invariants: [] },
+    steps: [], sources: [],
+    output: { httpStatus: 200, status: 'completed', message: 'Done.', claims: [] },
+  }
+  await page.locator('#trace-json').fill(JSON.stringify(probe))
+  await page.getByRole('button', { name: 'Import and evaluate' }).click()
+  await expect(page.locator('.import-result .warn')).toContainText('never PASS')
+  const detail = page.locator('#run-detail')
+  await expect(detail.locator('.verdict.pass').filter({ hasText: 'Transport' })).toBeVisible()
+  await expect(detail.locator('.verdict.review').filter({ hasText: 'Task' })).toContainText('Not enough evidence for PASS')
+  await expect(detail.locator('.verdict.pass').filter({ hasText: 'Task' })).toHaveCount(0)
+  await expect(detail.getByRole('heading', { name: 'Human review needed: not enough evidence for PASS' })).toBeVisible()
+  await expect(detail.locator('.assertions li.review')).toContainText('EVIDENCE-COVERAGE')
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(0)
+  await detail.screenshot({ path: `docs/screenshots/zero-evidence-review-${info.project.name}.png` })
+})

@@ -66,10 +66,10 @@ export function RunDetail({ trace: t, evaluation: e, row, onRun, review, onRevie
           )}
           {e.task === 'review' && (
             <section className="review-box" aria-label="Human review">
-              <h2>Human review needed: safe abstention</h2>
-              <p>{t.output.abstainReason}</p>
+              <h2>{e.reviewReason === 'abstained' ? 'Human review needed: safe abstention' : 'Human review needed: not enough evidence for PASS'}</h2>
+              <p>{e.reviewReason === 'abstained' ? t.output.abstainReason : `No failures, but nothing proves the job was done: ${e.coverage.steps} step(s), ${e.coverage.substantivePasses} non-vacuous assertion(s) from ${e.coverage.declaredInvariants} declared invariant(s). Add invariants or a fuller trace before trusting this run.`}</p>
               <div className="seg" role="group" aria-label="Review decision">
-                {['Abstention confirmed correct', 'Escalated to owner'].map((d) => (
+                {(e.reviewReason === 'abstained' ? ['Abstention confirmed correct', 'Escalated to owner'] : ['Needs invariants before release', 'Escalated to owner']).map((d) => (
                   <button key={d} aria-pressed={review.decision === d} onClick={() => onReview({ decision: d })}>{d}</button>
                 ))}
               </div>
